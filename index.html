@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discussion App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+      margin: 0;
+    }
+    .pane {
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .left-pane {
+      width: 40%;
+      border-right: 2px solid #ddd;
+    }
+    .right-pane {
+      width: 60%;
+    }
+    .question-form, .response-form {
+      margin-bottom: 20px;
+    }
+    .question-item, .response-item {
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .search-bar {
+      margin-bottom: 10px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .resolve-btn {
+      margin-top: 20px;
+      background-color: #ff6961;
+      color: #fff;
+      border: none;
+    }
+    .vote-buttons {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="pane left-pane">
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Search questions..." oninput="searchQuestions()">
+    </div>
+    <button onclick="displayQuestionForm()">New Question</button>
+    <div id="question-list">
+      <!-- List of questions will appear here -->
+    </div>
+  </div>
+
+  <div class="pane right-pane" id="right-pane">
+    <!-- By default, the right pane contains the question form -->
+    <div class="question-form" id="question-form">
+      <h2>Ask a Question</h2>
+      <input type="text" id="question-title" placeholder="Title" required><br><br>
+      <textarea id="question-text" placeholder="Question" required></textarea><br><br>
+      <button onclick="submitQuestion()">Submit Question</button>
+    </div>
+  </div>
+
+  <script>
+    let questions = []; // Array to store questions and responses
+
+    function displayQuestionForm() {
+      const rightPane = document.getElementById('right-pane');
+      rightPane.innerHTML = document.getElementById('question-form').outerHTML;
+    }
+
+    function submitQuestion() {
+      const title = document.getElementById('question-title').value.trim();
+      const questionText = document.getElementById('question-text').value.trim();
+      
+      if (title && questionText) {
+        const newQuestion = { id: Date.now(), title, questionText, responses: [], votes: 0 };
+        questions.push(newQuestion);
+        sortAndDisplayQuestions();
+        document.getElementById('question-title').value = '';
+        document.getElementById('question-text').value = '';
+      } else {
+        alert("Both Title and Question are required.");
+      }
+    }
+
+    function sortAndDisplayQuestions() {
+      questions.sort((a, b) => b.votes - a.votes);
+      displayQuestions();
+    }
+
+    function displayQuestions() {
+      const questionList = document.getElementById('question-list');
+      questionList.innerHTML = '';
+      questions.forEach((q) => {
+        const questionItem = document.createElement('div');
+        questionItem.classList.add('question-item');
+        questionItem.innerHTML = `
+          <div>${q.title}</div>
+          <div class="vote-buttons">
+            <button onclick="upvoteQuestion(${q.id})">Upvote</button>
+            <button onclick="downvoteQuestion(${q.id})">Downvote</button>
+            <span>Votes: ${q.votes}</span>
+          </div>`;
+        questionItem.onclick = () => displayQuestion(q.id);
+        questionList.appendChild(questionItem);
+      });
+    }
+
+    function displayQuestion(questionId) {
+      const question = questions.find(q => q.id === questionId);
+      const rightPane = document.getElementById('right-pane');
+      rightPane.innerHTML = `
+        <h2>${question.title}</h2>
+        <p>${question.questionText}</p>
+        <h3>Responses</h3>
+        <div id="responses">
+          ${question.responses.map(r => `
+            <div class="response-item">
+              <strong>${r.name}</strong>: ${r.comment}
+              <div class="vote-buttons">
+                <button onclick="upvoteResponse(${questionId}, ${r.id})">Upvote</button>
+                <button onclick="downvoteResponse(${questionId}, ${r.id})">Downvote</button>
+                <span>Votes: ${r.votes}</span>
+              </div>
+            </div>`).join('')}
+        </div>
+        <div class="response-form">
+          <input type="text" id="response-name" placeholder="Your Name" required><br><br>
+          <textarea id="response-comment" placeholder="Your Comment" required></textarea><br><br>
+          <button onclick="submitResponse(${question.id})">Submit Response</button>
+        </div>
+        <button class="resolve-btn" onclick="resolveQuestion(${question.id})">Resolve</button>
+      `;
+    }
+
+    function submitResponse(questionId) {
+      const name = document.getElementById('response-name').value.trim();
+      const comment = document.getElementById('response-comment').value.trim();
+
+      if (name && comment) {
+        const question = questions.find(q => q.id === questionId);
+        const newResponse = { id: Date.now(), name, comment, votes: 0 };
+        question.responses.push(newResponse);
+        question.responses.sort((a, b) => b.votes - a.votes);
+        displayQuestion(questionId);
+        document.getElementById('response-name').value = '';
+        document.getElementById('response-comment').value = '';
+      } else {
+        alert("Both Name and Comment are required.");
+      }
+    }
+
+    function resolveQuestion(questionId) {
+      questions = questions.filter(q => q.id !== questionId);
+      sortAndDisplayQuestions();
+      displayQuestionForm();
+    }
+
+    function searchQuestions() {
+      const query = document.getElementById('search-input').value.toLowerCase();
+      const filteredQuestions = query
+        ? questions.filter(q => q.title.toLowerCase().includes(query))
+        : questions;
+      displayFilteredQuestions(filteredQuestions);
+    }
+
+    function displayFilteredQuestions(filteredQuestions) {
+      const questionList = document.getElementById('question-list');
+      questionList.innerHTML = '';
+      filteredQuestions.forEach((q) => {
+        const questionItem = document.createElement('div');
+        questionItem.classList.add('question-item');
+        questionItem.innerHTML = `
+          <div>${q.title}</div>
+          <div class="vote-buttons">
+            <button onclick="upvoteQuestion(${q.id})">Upvote</button>
+            <button onclick="downvoteQuestion(${q.id})">Downvote</button>
+            <span>Votes: ${q.votes}</span>
+          </div>`;
+        questionItem.onclick = () => displayQuestion(q.id);
+        questionList.appendChild(questionItem);
+      });
+    }
+
+    function upvoteQuestion(id) {
+      const question = questions.find(q => q.id === id);
+      question.votes += 1;
+      sortAndDisplayQuestions();
+    }
+
+    function downvoteQuestion(id) {
+      const question = questions.find(q => q.id === id);
+      question.votes -= 1;
+      sortAndDisplayQuestions();
+    }
+
+    function upvoteResponse(questionId, responseId) {
+      const question = questions.find(q => q.id === questionId);
+      const response = question.responses.find(r => r.id === responseId);
+      response.votes += 1;
+      question.responses.sort((a, b) => b.votes - a.votes);
+      displayQuestion(questionId);
+    }
+
+    function downvoteResponse(questionId, responseId) {
+      const question = questions.find(q => q.id === questionId);
+      const response = question.responses.find(r => r.id === responseId);
+      response.votes -= 1;
+      question.responses.sort((a, b) => b.votes - a.votes);
+      displayQuestion(questionId);
+    }
+  </script>
+</body>
+</html>
